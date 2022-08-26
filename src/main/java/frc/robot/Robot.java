@@ -8,6 +8,12 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
+import com.ctre.phoenix.sensors.WPI_CANCoder;
+import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.can.TalonFX;
+import edu.wpi.first.math.controller.*;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -22,6 +28,15 @@ public class Robot extends TimedRobot {
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
   public Joystick stick = new Joystick(0);
+
+
+  public WPI_CANCoder cancoder = new WPI_CANCoder(21);
+
+  public TalonFX steer = new TalonFX(22);
+
+  public PIDController ccpid = new PIDController(0.01, 0, 0.0001);
+
+  public JoystickButton homebutton = new JoystickButton(stick, 2);
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -79,13 +94,43 @@ public class Robot extends TimedRobot {
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    SmartDashboard.putNumber("angle", 0);
+  }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-    double Xj = Math.pow(stick.getRawAxis(0), 3);
-    System.out.printf("%1.2f\n", Xj);
+    double Xj = Math.pow(stick.getRawAxis(4), 3);
+    double Yj = Math.pow(stick.getRawAxis(5), 3);
+
+    SmartDashboard.putNumber("Xj", Xj);
+    SmartDashboard.putNumber("cancoder", cancoder.getAbsolutePosition());
+
+    steer.set(ControlMode.PercentOutput, Yj * 0.5);
+
+
+ // double targetAngle =  SmartDashboard.getNumber("angle", 0);
+  double targetAngle =  231;
+
+
+    // double co = MathUtil.clamp(
+    //   ccpid.calculate(cancoder.getAbsolutePosition(),
+    //   targetAngle), -1, 1);
+
+    // steer.set(ControlMode.PercentOutput, -1 * co);
+
+
+    if (stick.getRawButton(2) == true)
+    {
+      double co = MathUtil.clamp(
+      ccpid.calculate(cancoder.getAbsolutePosition(),
+      targetAngle), -1, 1);
+      steer.set(ControlMode.PercentOutput, -1 * co);
+      System.out.println("HELLO @_@");
+    }
+    
+  
   }
 
   /** This function is called once when the robot is disabled. */

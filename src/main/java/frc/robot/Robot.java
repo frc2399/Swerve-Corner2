@@ -14,6 +14,7 @@ import com.ctre.phoenix.motorcontrol.can.TalonFX;
 import edu.wpi.first.math.controller.*;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.math.util.Units;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -34,9 +35,17 @@ public class Robot extends TimedRobot {
 
   public TalonFX steer = new TalonFX(22);
 
+  public TalonFX drive = new TalonFX(23);
+
   public PIDController ccpid = new PIDController(0.01, 0, 0.0001);
 
   public JoystickButton homebutton = new JoystickButton(stick, 2);
+
+  public PIDController talpid = new PIDController(0.0001, 0, 0);
+
+  public double talon_mk4i_180_count = 21943;
+
+  public double prev_ang = 0;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -96,18 +105,31 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     SmartDashboard.putNumber("angle", 0);
+    
   }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
     double Xj = Math.pow(stick.getRawAxis(4), 3);
-    double Yj = Math.pow(stick.getRawAxis(5), 3);
+    double Yj = -Math.pow(stick.getRawAxis(5), 3);
 
     SmartDashboard.putNumber("Xj", Xj);
+    SmartDashboard.putNumber("Yj", Yj);
     SmartDashboard.putNumber("cancoder", cancoder.getAbsolutePosition());
 
-    steer.set(ControlMode.PercentOutput, Yj * 0.5);
+    double str = Xj;
+    double fwd = Yj;
+    double vel = MathUtil.clamp(Math.sqrt((Xj * Xj) + (Yj * Yj)), -1, 1);
+    double ang = Units.radiansToDegrees(-Math.atan2(str, fwd));
+    ang = prev_ang + ((ang - prev_ang) + 180) % 360 - 180;
+
+    SmartDashboard.putNumber("velocity", vel);
+    SmartDashboard.putNumber("angle", ang);
+
+    //steer.set(ControlMode.PercentOutput, Yj * 0.5);
+
+
 
 
  // double targetAngle =  SmartDashboard.getNumber("angle", 0);
@@ -127,8 +149,22 @@ public class Robot extends TimedRobot {
       ccpid.calculate(cancoder.getAbsolutePosition(),
       targetAngle), -1, 1);
       steer.set(ControlMode.PercentOutput, -1 * co);
+      steer.setSelectedSensorPosition(0);
       System.out.println("HELLO @_@");
+      talpid.reset();
+      return;
     }
+  
+
+    double sp = -talon_mk4i_180_count * (ang/180);
+
+    double co = MathUtil.clamp(talpid.calculate(steer.getSelectedSensorPosition(), sp), -1, 1);
+
+    steer.set(ControlMode.PercentOutput, co);
+
+    drive.set(ControlMode.PercentOutput, vel);
+
+    prev_ang = ang;
     
   
   }
